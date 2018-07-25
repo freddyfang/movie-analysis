@@ -6,7 +6,9 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
@@ -16,18 +18,24 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.ControlledJob;
 import org.apache.hadoop.mapreduce.lib.jobcontrol.JobControl;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.LazyOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
+import idv.cs643team2.finalprj.helpers.TagProcessor;
+import idv.cs643team2.finalprj.mapper.GenomeScoreMapper;
 import idv.cs643team2.finalprj.mapper.GenreAvgRatingMapper;
 import idv.cs643team2.finalprj.mapper.GenreMapper;
 import idv.cs643team2.finalprj.mapper.RatingMapper;
+import idv.cs643team2.finalprj.reducer.GenomeScoreReducer;
 import idv.cs643team2.finalprj.reducer.GenreAvgRatingReducer;
 import idv.cs643team2.finalprj.reducer.GenreJoinRatingReducer;
 
 public class Main extends Configured implements Tool {
 	
+	public static TagProcessor TP = new TagProcessor();
+	 
 	@Override
 	public int run(String[] args) throws Exception {
 		String task = args[0];
@@ -39,6 +47,12 @@ public class Main extends Configured implements Tool {
 		switch(task) {
 			case "gr":
 				return runGenreRatingTask(inputDir, outputDir);
+			case "gt":	// genome tags
+			{
+				int _return_ = startGenomeTagsJob(inputDir, outputDir);
+				if(_return_ == 0)
+					TP.writeSortedTags();
+			}
 		}
 		
 		return 0;
@@ -130,6 +144,51 @@ public class Main extends Configured implements Tool {
 		return job;
 	}
 	
+	private static int startGenomeTagsJob(String inputDir, String output)
+    {
+    	try 
+    	{
+    		System.out.println("Start Job: Analyzing Genome Tags...");
+    		
+    		Configuration conf = new Configuration();
+    		Job myJob = Job.getInstance(conf, "GenomeTags");	// the job
+            
+            // Manage the output directory
+            // Delete the output directory if already exists
+            FileSystem fileSys = FileSystem.get(new Configuration());
+            fileSys.delete(new Path(output), true);
+            
+            FileInputFormat.addInputPath(myJob, new Path(inputDir + "//genome-scores.csv"));		// input
+            FileInputFormat.addInputPath(myJob, new Path(inputDir + "//genome-tags.csv"));		// input
+            
+            FileOutputFormat.setOutputPath(myJob, new Path(output));	// output	
+            TP.setOutputPath(output);
+            
+            // configure the job
+            myJob.setMapperClass(GenomeScoreMapper.class);
+            myJob.setReducerClass(GenomeScoreReducer.class);
+            myJob.setMapOutputKeyClass(Text.class);
+            myJob.setMapOutputValueClass(DoubleWritable.class);
+            myJob.setOutputKeyClass(Text.class);
+            myJob.setOutputValueClass(DoubleWritable.class);        
+            myJob.setInputFormatClass(TextInputFormat.class);
+            myJob.setOutputFormatClass(TextOutputFormat.class);
+            LazyOutputFormat.setOutputFormatClass(myJob, TextOutputFormat.class);
+
+            myJob.setJarByClass(Main.class);
+			if (myJob.waitForCompletion(true))
+				return 0;	// SUCCEED
+			else 
+				return 1;	// FAILED
+		} 
+    	catch (IOException | ClassNotFoundException | InterruptedException e) 
+    	{
+			e.printStackTrace();
+		}	
+    	
+    	return 1;
+    }
+	
 	/*--------------------------------------------------------
 	 * Helpers
 	 --------------------------------------------------------*/
@@ -150,9 +209,16 @@ public class Main extends Configured implements Tool {
 	public static void main(String[] args) throws Exception {
 		// The first argument denotes the task to execute, the second argument
 		// denotes input directory and the last argument denotes output directory
-		args = new String[] {"gr", "src/main/resources", "src/main/resources/output"};
+		//args = new String[] {"gr", "src/main/resources", "src/main/resources/output"};
+		args = new String [] {"gt", "src/main/resources/", "src/main/resources/output-genomeTags"};
 		
 		int exitCode = ToolRunner.run(new Main(), args);
+		
+		if(exitCode == 0)
+			System.out.println("\nSUCCESS!!!");
+		else
+			System.out.println("\nFAILED. See logs for details.");
+		
 		System.exit(exitCode);
 	}
 }
