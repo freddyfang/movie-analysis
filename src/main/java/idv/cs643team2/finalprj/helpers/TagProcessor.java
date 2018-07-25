@@ -61,7 +61,7 @@ public class TagProcessor
     public void writeSortedTags()
     {	
     	records = new ArrayList<String>();
-    	records.add("tagId, tag, score");
+    	records.add("tagId, tag, score\n");
     	
     	for(Map.Entry<String, Double> entry : sortTags(unsortedTags).entrySet())
     		records.add(entry.getKey() + ", " + tagsName.get(entry.getKey()) + ", " +  entry.getValue() + "\n");
