@@ -1,47 +1,47 @@
 package idv.cs643team2.finalprj.reducer;
+
 /**
- * ReducerMultiOutput.java
+ * GenomeScoreReducer.java
  * 
- * This is the reducer class
+ * Export results to a text file with tagId, its name, and its scores
+ * across all movies
+ * 
+ * @author FreddyFang
  */
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
-import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
-
-import idv.cs643team2.finalprj.Main;
  
-public class GenomeScoreReducer extends Reducer<Text, DoubleWritable, Text, DoubleWritable> {
-	private Text emitkey = new Text();
-	private DoubleWritable emitvalue = new DoubleWritable();
-	
-	private Text eKey = new Text();
-	private DoubleWritable eValue = new DoubleWritable();	
-	private Map<String, Double> myTags = new HashMap <String, Double> ();
-	private Reducer<Text, DoubleWritable, Text, DoubleWritable>.Context myContext;
+public class GenomeScoreReducer extends Reducer<Text, Text, Text, Text> {
+	private Text tKey = new Text();
+	private Text tValue = new Text();	
 
 	/**
 	 * Reduce method
 	 */
 	@Override
-	public void reduce(Text key, Iterable<DoubleWritable> values, Context context)
-			throws IOException, InterruptedException {
-			double sum = 0;
+	public void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException 
+	{
+		double sum = 0;
+		String tagValue = "";
+		String tagId = key.toString();
+		
+		for(Text value : values)
+		{
+			if(value.toString().matches(".*[a-zA-Z/\\?]+.*"))
+				tagId = tagId + "\t" + value.toString().replace("removeMe_", "");
+			else if(value.toString().matches("\\d+.*\\d*"))
+			{
+				sum = sum + Double.parseDouble(value.toString());		
+				tagValue = sum + "";
+			}
+		}
+		
+		tKey.set(tagId);
+		tValue.set(tagValue);
 
-			for (DoubleWritable value : values)
-				sum = sum + value.get();
-
-			String path_tagId = key.toString();
-			String tagId = path_tagId.split("\\*")[1];
-
-			emitkey.set((tagId));
-			emitvalue.set(sum);
-
-			context.write(emitkey, emitvalue);
-			Main.TP.collectTags(tagId, sum);			
+		context.write(tKey, tValue);			
 	}
 }
