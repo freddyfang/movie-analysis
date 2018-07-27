@@ -1,31 +1,35 @@
 /**
  * GenomeScoreMapper.java
+ * 
+ * Produce the total scores of each tag. The output file will allow
+ * us to see which tag has the highest score - which indicate its 
+ * popularity in the movie industry
+ * 
+ * @author Ashley Le
  */
 package idv.cs643team2.finalprj.mapper;
 
 import java.io.IOException;
-import org.apache.hadoop.io.DoubleWritable;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-
-import idv.cs643team2.finalprj.Main;
  
-public class GenomeScoreMapper extends Mapper<Object, Text, Text, DoubleWritable> 
+public class GenomeScoreMapper extends Mapper<Object, Text, Text, Text> 
 {
     private Text localKey = new Text();
-    private DoubleWritable localVal = new DoubleWritable();
+    private Text localVal = new Text();
         
     /**
      * Map method
      */
-    public void map(Object key, Text value, Mapper<Object, Text, Text, DoubleWritable> .Context context) throws IOException, InterruptedException 
+    public void map(Object key, Text value, Mapper<Object, Text, Text, Text> .Context context) throws IOException, InterruptedException 
     {
     	String filePathString = ((FileSplit) context.getInputSplit()).getPath().getName().toString();
         String [] terms = value.toString().split(",");
         
         if(terms.length == 2)	
-        	mapGenomeTags(terms);
+        	mapGenomeTags(terms, filePathString, context);
         if(terms.length == 3)
         	mapGenomeScores(terms, filePathString, context);
     }
@@ -34,11 +38,29 @@ public class GenomeScoreMapper extends Mapper<Object, Text, Text, DoubleWritable
      * Mapper for the genome-tags file
      * @param terms
      */
-    private void mapGenomeTags(String [] terms)
+    private void mapGenomeTags(String [] terms, String filePathString, Mapper<Object, Text, Text, Text> .Context context)
     {
-    	String tagId = terms[0];
-    	String tagName = terms[1];
-    	Main.TP.storeTagName(tagId, tagName);
+    	try {
+    		String tagId = terms[0];
+        	String tagName = terms[1];
+        	
+        	if(!tagId.equalsIgnoreCase("tagId"))
+        	{
+	        	localKey.set(tagId);
+	        	
+	        	if(tagName.toString().matches("[0-9]+[a-zA-Z]*."))
+	        		localVal.set("removeMe_" + tagName);
+	        	else
+	        		localVal.set(tagName);
+	        	
+				context.write(localKey, localVal);
+        	}
+		} 
+    	catch (IOException | InterruptedException e) 
+    	{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
     }
     
     /**
@@ -47,20 +69,20 @@ public class GenomeScoreMapper extends Mapper<Object, Text, Text, DoubleWritable
      * @param filePathString
      * @param context
      */
-    private void mapGenomeScores(String [] terms, String filePathString, Mapper<Object, Text, Text, DoubleWritable> .Context context)
+    private void mapGenomeScores(String [] terms, String filePathString, Mapper<Object, Text, Text, Text> .Context context)
     {
     	try
     	{
-	    	if(terms[2].matches("\\d+.*\\d*"))
+	    	if(terms[2].matches("\\d+.*\\d*"))	// ensure relevance is double
 	        {
 	        	// path + tagId
 	        	String tagId = terms[1].toString();
 	        	String relevance = terms[2].toString();
 	        	
-	        	localKey.set(filePathString + "*" + tagId);
-	        	localVal.set(Double.parseDouble(relevance));
+	        	localKey.set(tagId);
+	        	localVal.set(relevance);
 	        	
-					context.write(localKey, localVal);
+				context.write(localKey, localVal);
 	        }
 	    	else
 	    		return;
