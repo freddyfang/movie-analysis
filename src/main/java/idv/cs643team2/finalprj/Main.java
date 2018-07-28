@@ -44,7 +44,15 @@ public class Main extends Configured implements Tool {
 			case "gr":
 				return runGenreRatingTask(inputDir, outputDir);
 			case "gt":	// genome tags
-				return startGenomeTagsJob(inputDir, outputDir);			
+				return startGenomeTagsJob(inputDir, outputDir);	
+			case "all":
+			{
+				int exitCode = runGenreRatingTask(inputDir, outputDir);
+				if(exitCode == 1)	// failed
+					return exitCode;
+				else
+					return startGenomeTagsJob(inputDir, outputDir);
+			}
 		}
 		
 		return 0;
@@ -59,13 +67,19 @@ public class Main extends Configured implements Tool {
 		// Join the movie rating and genres
 		Path movies = new Path(inputDir, "movies.csv");
 		Path ratings = new Path(inputDir, "ratings.csv");
-		Path tmpOutput = new Path(outputDir, "genre_join_rating");
-		Job job1 = genreJoinRatingJob(new Path[] {movies, ratings}, tmpOutput);
+		Path tmpOutput1 = new Path(outputDir, "genre_join_rating");
+		Path tmpOutput2 = new Path(outputDir, "genre_rating");
+		
+		FileSystem fileSys = FileSystem.get(new Configuration());
+        fileSys.delete(tmpOutput1, true);
+        fileSys.delete(tmpOutput2, true);
+                
+		Job job1 = genreJoinRatingJob(new Path[] {movies, ratings}, tmpOutput1);
 		ControlledJob ctrlJob1 = new ControlledJob(job1.getConfiguration());
 		ctrlJob1.setJob(job1);
 		
 		// Calculate rating based on movie genre
-		Job job2 = genreAvgRatingJob(tmpOutput, new Path(outputDir, "genre_rating"));
+		Job job2 = genreAvgRatingJob(tmpOutput1, tmpOutput2);
 		ControlledJob ctrlJob2 = new ControlledJob(job2.getConfiguration());
 		ctrlJob2.setJob(job2);
 		
@@ -140,7 +154,7 @@ public class Main extends Configured implements Tool {
     {
     	try 
     	{
-    		System.out.println("Start Job: Analyzing Genome Tags...");
+    		System.out.println("Start Job: Genome Tags");
     		
     		Configuration conf = new Configuration();
     		Job myJob = Job.getInstance(conf, "GenomeTags");	// the job
@@ -148,6 +162,7 @@ public class Main extends Configured implements Tool {
             // Manage the output directory
             // Delete the output directory if already exists
             FileSystem fileSys = FileSystem.get(new Configuration());
+            output = output + "/tags_genome";
             fileSys.delete(new Path(output), true);
             
             FileInputFormat.addInputPath(myJob, new Path(inputDir + "//genome-scores.csv"));	// input
@@ -201,9 +216,12 @@ public class Main extends Configured implements Tool {
 		// The first argument denotes the task to execute, the second argument
 		// denotes input directory and the last argument denotes output directory
 		//args = new String[] {"gr", "src/main/resources", "src/main/resources/output"};
-		args = new String [] {"gt", "src/main/resources", "src/main/resources/output-genomeTags"};
+		//args = new String [] {"gt", "src/main/resources/samples", "src/main/resources/output"};
+		//args = new String [] {"all", "/home/mcash/Desktop/resources", "/home/mcash/Desktop/output"};
 		
-		int exitCode = ToolRunner.run(new Main(), args);		
+		int exitCode = ToolRunner.run(new Main(), args);	
+		
+		System.out.println("Job(s) is completed. System exit code: " + exitCode);
 		System.exit(exitCode);
 	}
 }
