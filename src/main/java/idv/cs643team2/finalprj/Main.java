@@ -54,6 +54,7 @@ public class Main extends Configured implements Tool {
 					return startGenomeTagsJob(inputDir, outputDir);
 			}
 		}
+		 
 		
 		return 0;
 	}
