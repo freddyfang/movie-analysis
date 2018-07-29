@@ -13,7 +13,6 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
  
 public class GenomeScoreMapper extends Mapper<Object, Text, Text, Text> 
 {
@@ -25,20 +24,19 @@ public class GenomeScoreMapper extends Mapper<Object, Text, Text, Text>
      */
     public void map(Object key, Text value, Mapper<Object, Text, Text, Text> .Context context) throws IOException, InterruptedException 
     {
-    	String filePathString = ((FileSplit) context.getInputSplit()).getPath().getName().toString();
-        String [] terms = value.toString().split(",");
+    	String [] terms = value.toString().split(",");
         
         if(terms.length == 2)	
-        	mapGenomeTags(terms, filePathString, context);
+        	mapGenomeTags(terms, context);
         if(terms.length == 3)
-        	mapGenomeScores(terms, filePathString, context);
+        	mapGenomeScores(terms, context);
     }
     
     /**
      * Mapper for the genome-tags file
      * @param terms
      */
-    private void mapGenomeTags(String [] terms, String filePathString, Mapper<Object, Text, Text, Text> .Context context)
+    private void mapGenomeTags(String [] terms, Mapper<Object, Text, Text, Text> .Context context)
     {
     	try {
     		String tagId = terms[0];
@@ -58,7 +56,6 @@ public class GenomeScoreMapper extends Mapper<Object, Text, Text, Text>
 		} 
     	catch (IOException | InterruptedException e) 
     	{
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
     }
@@ -66,10 +63,9 @@ public class GenomeScoreMapper extends Mapper<Object, Text, Text, Text>
     /**
      * Mapper for the genome-scores file
      * @param terms
-     * @param filePathString
      * @param context
      */
-    private void mapGenomeScores(String [] terms, String filePathString, Mapper<Object, Text, Text, Text> .Context context)
+    private void mapGenomeScores(String [] terms, Mapper<Object, Text, Text, Text> .Context context)
     {
     	try
     	{
@@ -89,7 +85,6 @@ public class GenomeScoreMapper extends Mapper<Object, Text, Text, Text>
     	}
     	catch (IOException | InterruptedException e) 
     	{
-			// TODO Auto-generated catch block
 			e.printStackTrace();
         }  
     }
